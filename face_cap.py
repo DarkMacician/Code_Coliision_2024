@@ -1,7 +1,7 @@
 import requests
 
-API_KEY = 'lw5FQdwBUHSSdm9lDrc2nffqTolkV_gt'
-API_SECRET = 'Mzpc5u7E5ypzhc0uIP1lr-YAKAVxM9zZ'
+API_KEY = 'your api key'
+API_SECRET = 'your api secret'
 
 DETECT_URL = 'https://api-us.faceplusplus.com/facepp/v3/detect'
 
