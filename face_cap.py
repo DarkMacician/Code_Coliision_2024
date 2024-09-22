@@ -1,57 +1,68 @@
-import time
-import cv2
+import requests
 
-# start_time = time.time()
+API_KEY = 'lw5FQdwBUHSSdm9lDrc2nffqTolkV_gt'
+API_SECRET = 'Mzpc5u7E5ypzhc0uIP1lr-YAKAVxM9zZ'
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+DETECT_URL = 'https://api-us.faceplusplus.com/facepp/v3/detect'
 
-cap = cv2.VideoCapture(0)
-captured = False
-processing_interval = 0.1
-last_processed_time = time.time()
+COMPARE_URL = 'https://api-us.faceplusplus.com/facepp/v3/compare'
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Failed to capture frame from camera.")
-        break
 
-    current_time = time.time()
+def detect_face(image_path):
+    files = {'image_file': open(image_path, 'rb')}
+    data = {
+        'api_key': API_KEY,
+        'api_secret': API_SECRET,
+        'return_attributes': 'gender,age'
+    }
 
-    if current_time - last_processed_time >= processing_interval:
-        small_frame = cv2.resize(frame, (640, 480))
-        gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+    response = requests.post(DETECT_URL, files=files, data=data)
+    response_json = response.json()
 
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    if 'faces' not in response_json or len(response_json['faces']) == 0:
+        return None, 'No face detected'
 
-        for (x, y, w, h) in faces:
-            x, y, w, h = int(x * (frame.shape[1] / small_frame.shape[1])), int(
-                y * (frame.shape[0] / small_frame.shape[0])), int(w * (frame.shape[1] / small_frame.shape[1])), int(
-                h * (frame.shape[0] / small_frame.shape[0]))
+    face_token = response_json['faces'][0]['face_token']
+    return face_token, None
 
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-            if not captured:
-                face_img = frame[y:y + h, x:x + w]
-                cv2.imwrite('captured_face.png', face_img)
-                captured = True
-                print("Capture successful!")
-                break
+def compare_faces(face_token1, face_token2):
+    data = {
+        'api_key': API_KEY,
+        'api_secret': API_SECRET,
+        'face_token1': face_token1,
+        'face_token2': face_token2
+    }
 
-        last_processed_time = current_time
+    response = requests.post(COMPARE_URL, data=data)
+    response_json = response.json()
 
-    if captured:
-        break
+    if 'confidence' in response_json:
+        return response_json['confidence'], response_json.get('thresholds', {})
+    else:
+        return None, 'Face comparison failed'
 
-    cv2.imshow('Face Detection', frame)
+reference_image_path = 'D:\Code_Coliision_2024\captured_face.png'
+captured_image_path = 'D:\MachineLearning\captured_faces/face_0_1.jpg'
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+try:
+    reference_face_token, error = detect_face(reference_image_path)
+    if error:
+        print(f"Reference image error: {error}")
+    else:
+        print(f"Reference Face Token: {reference_face_token}")
 
-cap.release()
-cv2.destroyAllWindows()
+    # Detect face in captured image
+    captured_face_token, error = detect_face(captured_image_path)
+    if error:
+        print(f"Captured image error: {error}")
+    else:
+        print(f"Captured Face Token: {captured_face_token}")
 
-# end_time = time.time()
-#
-# elapsed_time = end_time - start_time
-# print(f"Elapsed time: {elapsed_time:.2f} seconds")
+    if reference_face_token and captured_face_token:
+        confidence, thresholds = compare_faces(reference_face_token, captured_face_token)
+        print(f"Faces match with confidence: {confidence}")
+        print(f"Thresholds: {thresholds}")
+
+except Exception as e:
+    print(f"An error occurred: {e}")
